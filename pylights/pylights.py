@@ -17,7 +17,10 @@ class PyLights(Frame):
 	}
 
 	def __init__(self, config):
-		super().__init__(Tk())
+		root=Tk()
+		root.title('PyLights')
+
+		super().__init__(root)
 		self.pack()
 
 		self.config=config
