@@ -74,8 +74,6 @@ class Device(Frame):
 	def __init__(self, parent):
 		super().__init__(parent)
 
-		self.set(None)
-
 	def set(self, value):
 		self.value=value
 
@@ -96,6 +94,10 @@ class Dimmer(Device):
 		self.scale.pack()
 		self.button=Button(self, text="Set", command=self.press)
 		self.button.pack()
+
+	def set(self, value):
+		super().set(value)
+		self.scale.set(value)
 
 	def press(self):
 		if self.callback:
