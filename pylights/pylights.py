@@ -17,16 +17,23 @@ class PyLights(Frame):
 	}
 
 	def __init__(self, config):
+		self.config=config
+		self.snmp=Snmp(self.config)
+		self.widgets=[]
+
 		root=Tk()
 		root.title('PyLights')
 
 		super().__init__(root)
 		self.pack()
 
-		self.config=config
-		self.snmp=Snmp(self.config)
-
-		self.widgets=[]
+		self.menu=Menu(self)
+		filemenu=Menu(self.menu, tearoff=0)
+		filemenu.add_command(label="Rescan devices", command=self.setup_devices)
+		filemenu.add_command(label="Quit", command=quit)
+		
+		self.menu.add_cascade(label="File", menu=filemenu)
+		root.config(menu=self.menu)
 
 		self.setup_devices()
 
