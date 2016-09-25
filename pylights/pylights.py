@@ -75,7 +75,15 @@ class PyLights(Frame):
 		return devices
 
 	def toggle(self, index):
-		print("XXX Not implemented, I don't have a non-dimming switch")
+		value=self.snmp.get("{}.{}".format(self.mib['value'], index))
+		if value==0:
+			# XXX tellsense only cares about 0 or not-0, but let's use sensible values in case it's a dimmer that was misconfigured
+
+			value=128
+		else:
+			value=0
+
+		self.snmp.set("{}.{}".format(self.mib['value'], index), value, 'GAUGE')
 
 	def dim(self, level, index):
 		self.snmp.set("{}.{}".format(self.mib['value'], index), level, 'GAUGE')
