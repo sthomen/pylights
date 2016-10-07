@@ -110,15 +110,14 @@ class Dimmer(Device):
 		self.label=Label(self, text=title)
 		self.label.pack()
 		self.scale=Scale(self, from_=0, to=255, orient=HORIZONTAL)
+		self.scale.bind('<ButtonRelease-1>', self.press)
 		self.scale.pack()
-		self.button=Button(self, text="Set", command=self.press)
-		self.button.pack()
 
 	def set(self, value):
 		super().set(value)
 		self.scale.set(value)
 
-	def press(self):
+	def press(self, event):
 		if self.callback:
 			self.callback(self.scale.get(), *self.params)
 
