@@ -23,6 +23,7 @@ class PyLights(Frame):
 
 		root=Tk()
 		root.title('PyLights')
+		root.resizable(0,0)
 
 		super().__init__(root)
 		self.pack()
