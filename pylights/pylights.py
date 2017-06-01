@@ -52,7 +52,7 @@ class PyLights(Frame):
 				widget.callback(self.dim, [ device['index'] ])
 			else:
 				widget=Switch(self, title=device['name'])
-				widget.callback(self.toggle, [ device['index'] ])
+				widget.callback(self.set, [ device['index'] ])
 
 			widget.set(device['value'])
 
@@ -75,16 +75,8 @@ class PyLights(Frame):
 
 		return devices
 
-	def toggle(self, index):
-		value=self.snmp.get("{}.{}".format(self.mib['value'], index))
-		if value==0:
-			# XXX tellsense only cares about 0 or not-0, but let's use sensible values in case it's a dimmer that was misconfigured
-
-			value=128
-		else:
-			value=0
-
-		self.snmp.set("{}.{}".format(self.mib['value'], index), value, 'GAUGE')
+	def set(self, state, index):
+		self.snmp.set("{}.{}".format(self.mib['value'], index), state, 'GAUGE')
 
 	def dim(self, level, index):
 		self.snmp.set("{}.{}".format(self.mib['value'], index), level, 'GAUGE')
@@ -127,9 +119,15 @@ class Switch(Device):
 
 		self.label=Label(self, text=title)
 		self.label.pack()
-		self.button=Button(self, text="Toggle", command=self.press)
-		self.button.pack()
+		self.on=Button(self, text="On", command=self.on)
+		self.on.pack(side=LEFT)
+		self.off=Button(self, text="Off", command=self.off)
+		self.off.pack(side=RIGHT)
 
-	def press(self):
+	def on(self):
 		if self.callback:
-			self.callback(*self.params)
+			self.callback(1, *self.params)
+
+	def off(self):
+		if self.callback:
+			self.callback(0, *self.params)
