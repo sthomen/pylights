@@ -1,6 +1,7 @@
 # vim:ts=4:sw=4:
 
 from tkinter import *
+from collections import OrderedDict
 
 from .snmp import Snmp
 
@@ -63,7 +64,7 @@ class PyLights(Frame):
 	def load_devices(self):
 		data=self.snmp.walk(self.mibroot)
 
-		rmib={v:k for k,v in self.mib.items()}
+		rmib=OrderedDict({v:k for k,v in self.mib.items()})
 
 		devices={}
 
