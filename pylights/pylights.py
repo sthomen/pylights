@@ -2,8 +2,11 @@
 
 from tkinter import *
 from collections import OrderedDict
+from threading import Thread
+from time import sleep
 
 from .snmp import Snmp
+from .device import Switch, Dimmer
 
 class PyLights(Frame):
 
@@ -21,6 +24,7 @@ class PyLights(Frame):
 		self.config=config
 		self.snmp=Snmp(self.config)
 		self.widgets=[]
+		self.updater=None
 
 		root=Tk()
 		root.title('PyLights')
@@ -50,10 +54,11 @@ class PyLights(Frame):
 		for device in self.devices.values():
 			if 'dimmer' in device['model']:
 				widget=Dimmer(self, title=device['name'])
-				widget.callback(self.dim, [ device['index'] ])
+				widget.setSetCallback(self.dim, [ device['index'] ])
+				widget.setGetCallback(self.get, [ device['index'] ])
 			else:
 				widget=Switch(self, title=device['name'])
-				widget.callback(self.set, [ device['index'] ])
+				widget.setSetCallback(self.set, [ device['index'] ])
 
 			widget.set(device['value'])
 
@@ -61,12 +66,18 @@ class PyLights(Frame):
 
 			self.widgets.append(widget)
 
+		if self.updater:
+			self.updater.stop()
+
+		self.updater=DimmerUpdateThread(self.widgets)
+		self.updater.start()
+
 	def load_devices(self):
 		data=self.snmp.walk(self.mibroot)
 
 		rmib=OrderedDict({v:k for k,v in self.mib.items()})
 
-		devices={}
+		devices=OrderedDict()
 
 		for row in data:
 			if not row.oid_index in devices:
@@ -76,59 +87,38 @@ class PyLights(Frame):
 
 		return devices
 
+	def get(self, index):
+		result=self.snmp.get("{}.{}".format(self.mib['value'], index))
+		return result.value
+
 	def set(self, state, index):
 		self.snmp.set("{}.{}".format(self.mib['value'], index), state, 'GAUGE')
 
 	def dim(self, level, index):
 		self.snmp.set("{}.{}".format(self.mib['value'], index), level, 'GAUGE')
 
-class Device(Frame):
-	def __init__(self, parent):
-		super().__init__(parent)
+class DimmerUpdateThread(Thread):
+	def __init__(self, widgets):
+		self.setWidgets(widgets)
+		self.done=False
 
-	def set(self, value):
-		self.value=value
+		super().__init__()
 
-	def get(self):
-		return self.value
+		self.daemon=True
 
-	def callback(self, callback, params=[]):
-		self.callback=callback
-		self.params=params
+	def setWidgets(self, widgets):
+		self.widgets = widgets
 
-class Dimmer(Device):
-	def __init__(self, parent, title="Dimmer"):
-		super().__init__(parent)
+	def waitLoop(self):
+		sleep(1)
 
-		self.label=Label(self, text=title)
-		self.label.pack()
-		self.scale=Scale(self, from_=0, to=255, orient=HORIZONTAL)
-		self.scale.bind('<ButtonRelease-1>', self.press)
-		self.scale.pack()
+	def run(self):
+		while not self.done:
+			for widget in self.widgets:
+				if type(widget) == Dimmer:
+					widget.get()
 
-	def set(self, value):
-		super().set(value)
-		self.scale.set(value)
+			self.waitLoop()
 
-	def press(self, event):
-		if self.callback:
-			self.callback(self.scale.get(), *self.params)
-
-class Switch(Device):
-	def __init__(self, parent, title="Switch"):
-		super().__init__(parent)
-
-		self.label=Label(self, text=title)
-		self.label.pack()
-		self.on=Button(self, text="On", command=self.on)
-		self.on.pack(side=LEFT)
-		self.off=Button(self, text="Off", command=self.off)
-		self.off.pack(side=RIGHT)
-
-	def on(self):
-		if self.callback:
-			self.callback(1, *self.params)
-
-	def off(self):
-		if self.callback:
-			self.callback(0, *self.params)
+	def stop(self):
+		self.done=True
