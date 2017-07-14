@@ -24,7 +24,6 @@ class PyLights(Frame):
 		self.config=config
 		self.snmp=Snmp(self.config)
 		self.widgets=[]
-		self.updater=None
 
 		root=Tk()
 		root.title('PyLights')
@@ -33,9 +32,13 @@ class PyLights(Frame):
 		super().__init__(root)
 		self.pack()
 
+		self.updater=None
+		self.update=BooleanVar(root, True)
+
 		self.menu=Menu(self)
 		filemenu=Menu(self.menu, tearoff=0)
 		filemenu.add_command(label="Rescan devices", command=self.setup_devices)
+		filemenu.add_checkbutton(label="Autorefresh dimmers", onvalue=True, offvalue=False, variable=self.update, command=self.toggle_update)
 		filemenu.add_command(label="Quit", command=quit)
 		
 		self.menu.add_cascade(label="File", menu=filemenu)
@@ -87,6 +90,12 @@ class PyLights(Frame):
 
 		return devices
 
+	def toggle_update(self):
+		if self.update.get() == False:
+			self.updater.pause()
+		else:
+			self.updater.resume()
+
 	def get(self, index):
 		result=self.snmp.get("{}.{}".format(self.mib['value'], index))
 		return result.value
@@ -100,6 +109,7 @@ class PyLights(Frame):
 class DimmerUpdateThread(Thread):
 	def __init__(self, widgets):
 		self.setWidgets(widgets)
+		self.paused=False
 		self.done=False
 
 		super().__init__()
@@ -114,11 +124,18 @@ class DimmerUpdateThread(Thread):
 
 	def run(self):
 		while not self.done:
-			for widget in self.widgets:
-				if type(widget) == Dimmer:
-					widget.get()
+			if not self.paused:
+				for widget in self.widgets:
+					if type(widget) == Dimmer:
+						widget.get()
 
 			self.waitLoop()
+
+	def pause(self):
+		self.paused=True
+
+	def resume(self):
+		self.paused=False
 
 	def stop(self):
 		self.done=True
